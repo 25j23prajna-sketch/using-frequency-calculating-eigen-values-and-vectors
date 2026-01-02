@@ -1,35 +1,234 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Mechanical Vibrations & Eigenvalues</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<title>Mechanical Vibrations & Eigenvalues</title>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f6f8;
+  padding: 20px;
+}
+
+h1 {
+  color: #003366;
+}
+
+label {
+  display: inline-block;
+  width: 80px;
+}
+
+canvas {
+  background: white;
+  border: 1px solid #ccc;
+  margin-top: 10px;
+}
+
+pre {
+  background: #eaeaea;
+  padding: 10px;
+}
+</style>
 </head>
+
 <body>
 
 <h1>Two-Mass Spring System</h1>
-
 <p>
-Mechanical vibrations can be modeled using matrices.
-Natural frequencies are found using eigenvalues.
+This interactive page shows how <b>matrices, eigenvalues, and eigenvectors</b>
+describe real mechanical vibrations.
 </p>
+
+<hr>
 
 <h2>System Parameters</h2>
 
-<label>Mass m₁:</label>
-<input id="m1" type="number" value="1"><br>
+<label>Mass m₁</label>
+<input id="m1" type="range" min="0.5" max="5" step="0.5" value="1">
+<span id="m1v">1</span><br>
 
-<label>Mass m₂:</label>
-<input id="m2" type="number" value="1"><br>
+<label>Mass m₂</label>
+<input id="m2" type="range" min="0.5" max="5" step="0.5" value="1">
+<span id="m2v">1</span><br>
 
-<label>Spring k:</label>
-<input id="k" type="number" value="10"><br>
+<label>Spring k</label>
+<input id="k" type="range" min="5" max="50" step="5" value="10">
+<span id="kv">10</span><br>
 
-<button onclick="calculate()">Calculate Frequencies</button>
+<button onclick="calculate()">Update System</button>
 
-<h2>Natural Frequencies</h2>
-<p id="result"></p>
+<hr>
 
-<script src="script.js"></script>
+<h2>Mass & Stiffness Matrices</h2>
+<pre id="matrices"></pre>
+
+<h2>Natural Frequencies (Eigenvalues)</h2>
+<p id="freq"></p>
+
+<h2>Frequency Graph</h2>
+<canvas id="freqGraph" width="400" height="200"></canvas>
+
+<h2>Mode 1 Animation (In-phase)</h2>
+<canvas id="animation1" width="400" height="120"></canvas>
+
+<h2>Mode 2 Animation (Out-of-phase)</h2>
+<canvas id="animation2" width="400" height="120"></canvas>
+
+<h2>Eigenvectors (Mode Shapes)</h2>
+<pre id="eigenvectors"></pre>
+
+<h2>Eigenvector Visualization</h2>
+<canvas id="vectorCanvas" width="400" height="150"></canvas>
+
+<h3>How eigenvectors are found (simple)</h3>
+<p>
+After finding ω, we solve:
+<br><b>(K − ω²M)φ = 0</b>
+<br>
+Only relative motion matters, so vectors like [1,1] or [2,2] describe the same mode.
+</p>
+
+<script>
+let time1 = 0;
+let time2 = 0;
+
+function calculate() {
+  let m1 = +document.getElementById("m1").value;
+  let m2 = +document.getElementById("m2").value;
+  let k  = +document.getElementById("k").value;
+
+  m1v.innerText = m1;
+  m2v.innerText = m2;
+  kv.innerText  = k;
+
+  // Matrices
+  document.getElementById("matrices").innerText =
+`Mass Matrix M:
+[ ${m1}   0 ]
+[ 0   ${m2} ]
+
+Stiffness Matrix K:
+[ ${2*k}  ${-k} ]
+[ ${-k}  ${2*k} ]`;
+
+  // Eigenvalue calculation
+  let a = 2*k/m1;
+  let b = -k/m1;
+  let c = -k/m2;
+  let d = 2*k/m2;
+
+  let trace = a + d;
+  let det = a*d - b*c;
+
+  let lambda1 = (trace + Math.sqrt(trace*trace - 4*det))/2;
+  let lambda2 = (trace - Math.sqrt(trace*trace - 4*det))/2;
+
+  let w1 = Math.sqrt(lambda1);
+  let w2 = Math.sqrt(lambda2);
+
+  document.getElementById("freq").innerHTML =
+    `ω₁ = ${w1.toFixed(2)} rad/s<br>ω₂ = ${w2.toFixed(2)} rad/s`;
+
+  document.getElementById("eigenvectors").innerText =
+`Mode 1 Eigenvector (In-phase):
+[ 1 ]
+[ 1 ]
+
+Mode 2 Eigenvector (Out-of-phase):
+[ 1 ]
+[ -1 ]`;
+
+  drawFrequencyGraph(w1, w2);
+  drawEigenvectors();
+  animateMode1(w1);
+  animateMode2(w2);
+}
+
+// Frequency graph
+function drawFrequencyGraph(w1, w2) {
+  let ctx = freqGraph.getContext("2d");
+  ctx.clearRect(0,0,400,200);
+
+  ctx.fillStyle = "#003366";
+  ctx.fillRect(80, 180-w1*10, 50, w1*10);
+  ctx.fillRect(200, 180-w2*10, 50, w2*10);
+
+  ctx.fillText("ω₁", 95, 195);
+  ctx.fillText("ω₂", 215, 195);
+}
+
+// Mode 1 animation
+function animateMode1(freq) {
+  let ctx = animation1.getContext("2d");
+
+  function draw() {
+    ctx.clearRect(0,0,400,120);
+
+    let x1 = 120 + 20*Math.sin(freq*time1);
+    let x2 = 280 + 20*Math.sin(freq*time1);
+
+    ctx.beginPath();
+    ctx.arc(x1, 60, 15, 0, Math.PI*2);
+    ctx.arc(x2, 60, 15, 0, Math.PI*2);
+    ctx.fill();
+
+    time1 += 0.05;
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+// Mode 2 animation
+function animateMode2(freq) {
+  let ctx = animation2.getContext("2d");
+
+  function draw() {
+    ctx.clearRect(0,0,400,120);
+
+    let x1 = 120 + 20*Math.sin(freq*time2);
+    let x2 = 280 - 20*Math.sin(freq*time2);
+
+    ctx.beginPath();
+    ctx.arc(x1, 60, 15, 0, Math.PI*2);
+    ctx.arc(x2, 60, 15, 0, Math.PI*2);
+    ctx.fill();
+
+    time2 += 0.05;
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+// Eigenvector arrows
+function drawEigenvectors() {
+  let ctx = vectorCanvas.getContext("2d");
+  ctx.clearRect(0,0,400,150);
+
+  ctx.fillText("Mode 1 (In-phase)", 20, 20);
+  drawArrow(ctx, 100, 40, 140, 40);
+  drawArrow(ctx, 200, 40, 240, 40);
+
+  ctx.fillText("Mode 2 (Out-of-phase)", 20, 100);
+  drawArrow(ctx, 100, 120, 140, 120);
+  drawArrow(ctx, 240, 120, 200, 120);
+}
+
+function drawArrow(ctx, x1, y1, x2, y2) {
+  ctx.beginPath();
+  ctx.moveTo(x1,y1);
+  ctx.lineTo(x2,y2);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(x2, y2, 4, 0, Math.PI*2);
+  ctx.fill();
+}
+
+// Initialize
+calculate();
+</script>
+
 </body>
 </html>
